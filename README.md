@@ -1,20 +1,18 @@
-# SOMOSTC
-jogo
 <!doctype html>
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Dobble — v26 (salas+emoji+upload JPG/PNG corrigidos)</title>
+<title>Dobble — v27 (popup + ranking geral acumulado)</title>
 <style>
   :root { --bg:#b91c1c; --panel:#dc2626; --ink:#fff; --ring:#facc15; --card: clamp(250px, 44vw, 420px); }
   * { box-sizing:border-box }
   html,body{height:100%;margin:0}
   body{background:var(--bg);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial}
   .wrap{max-width:1200px;margin:0 auto;padding:12px}
-  .topbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
-  .badge{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:4px 10px;font-weight:700}
-  .badge img,.badge .emo{width:22px;height:22px;border-radius:50%;object-fit:cover;background:#fff;display:grid;place-items:center;color:#222}
+  .topbar{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+  .topline{font-weight:800;}
+  .toplist{font-size:14px;line-height:1.35}
   .frame{background:var(--panel);border:1px solid rgba(255,255,255,.25);border-radius:16px;box-shadow:0 6px 18px rgba(0,0,0,.25)}
   .head{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.25)}
   .title{font-weight:800;font-size:16px}
@@ -33,26 +31,29 @@ jogo
   .rankrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .rankpill{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:4px 8px;white-space:nowrap;font-size:13px}
   button.btn{appearance:none;border:0;background:#fff;color:#b91c1c;border-radius:10px;padding:8px 12px;font-weight:800;cursor:pointer}
-  /* Overlays */
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:50}
   .modal{width:min(760px,92vw);background:#fff;color:#222;border-radius:14px;padding:14px}
   .list{display:flex;flex-direction:column;gap:6px;margin-top:10px}
   .li{display:flex;align-items:center;gap:8px;background:#f7f7f7;border:1px solid #e5e7eb;border-radius:8px;padding:6px 10px}
   .li.missed{background:#fff1f2;border-color:#fecdd3}
-  .idx{font-weight:800;min-width:32px;text-align:center}
+  .idx{font-weight:800;min-width:140px;text-align:left}
   .name{font-weight:700}
   .tag{font-size:12px;opacity:.75}
   .avatarPrev{width:56px;height:56px;border-radius:50%;background:#f3f4f6;display:grid;place-items:center;overflow:hidden;border:1px solid #e5e7eb}
   .avatarPrev img{width:100%;height:100%;object-fit:cover}
   .emojis{display:flex;gap:6px;flex-wrap:wrap}
   .emojis button{font-size:22px;padding:6px 8px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;cursor:pointer}
-  @media (max-width:720px){.grid2{grid-template-columns:1fr}}
+  @media (max-width:720px){.grid2{grid-template-columns:1fr} .idx{min-width:120px}}
 </style>
 </head>
 <body>
 <div class="wrap">
 
-  <div class="topbar" id="top3"><div style="font-weight:800;">Principal geral:</div></div>
+  <!-- Ranking geral acumulado -->
+  <div class="topbar" id="top3">
+    <div class="topline">Ranking geral acumulado :</div>
+    <div class="toplist" id="topListText">—</div>
+  </div>
 
   <div class="grid2">
     <div class="frame">
@@ -293,17 +294,15 @@ function updateTop3(scores){
   const playersRef = roomRef.child('players');
   playersRef.once('value').then(ps=>{
     const players = ps.val()||{};
-    const arr = Object.keys(scores).map(uid=>({uid, name:(players[uid]?.name||'??'), avatar:(players[uid]?.avatar||'🙂'), pts:scores[uid]}));
+    const arr = Object.keys(scores).map(uid=>({uid, name:(players[uid]?.name||'??'), avatar:(players[uid]?.avatar||'🙂'), pts:scores[uid]||0}));
     arr.sort((a,b)=>b.pts-a.pts);
-    const top = document.getElementById('top3');
-    top.innerHTML = '<div style="font-weight:800;">Principal geral:</div>';
-    arr.slice(0,3).forEach((it,idx)=>{
-      const badge = document.createElement('div');
-      badge.className = 'badge';
-      const avHTML = it.avatar.startsWith('data:image') ? `<img src="${it.avatar}">` : `<div class="emo">${it.avatar}</div>`;
-      badge.innerHTML = `${avHTML}<span>${idx+1}º ${it.name} (${it.pts||0})</span>`;
-      top.appendChild(badge);
+    const t = document.getElementById('topListText');
+    const lines = [];
+    ['1º','2º','3º'].forEach((ord, idx)=>{
+      const it = arr[idx];
+      if (it) lines.push(`${ord} Lugar ${it.name} - ${it.pts} acertos`);
     });
+    t.textContent = lines.length ? lines.join('   /   ') : '—';
   });
 }
 
@@ -317,7 +316,7 @@ function renderRoundRank(winnersObj){
     const pill=document.createElement('div');
     pill.className='rankpill';
     const avHTML = (w.avatar||'🙂').startsWith('data:image') ? `<img src="${w.avatar}" style="width:22px;height:22px;border-radius:50%;">` : `<span class="emo">${w.avatar||'🙂'}</span>`;
-    const tag = i===0 ? '<span class="tag">pontuou</span>' : '<span class="tag">acertou</span>';
+    const tag = i===0 ? '<span class="tag">Pontuou</span>' : '<span class="tag">Não pontuou</span>';
     pill.innerHTML = `${avHTML}<strong>${i+1}º</strong> ${w.name} ${tag}`;
     el.appendChild(pill);
   });
@@ -348,14 +347,16 @@ async function showResultsModal(roundNumber){
   winnersArr.forEach(w=>{
     const div=document.createElement('div'); div.className='li';
     const avHTML = (w.avatar||'🙂').startsWith('data:image') ? `<img src="${w.avatar}" style="width:24px;height:24px;border-radius:50%;">` : `<span class="emo">${w.avatar||'🙂'}</span>`;
-    const tag = idx===1 ? 'pontuou' : 'acertou';
+    const tag = idx===1 ? 'Pontuou' : 'Não pontuou';
     div.innerHTML = `<div class="idx">${idx++}º</div>${avHTML}<div class="name">${w.name}</div><div class="tag">${tag}</div>`;
     listEl.appendChild(div);
   });
-  nonClickers.forEach(nc=>{
+  // sem classificação
+  nonClickers.sort((a,b)=> a[1].name.localeCompare(b[1].name));
+  nonClickers.forEach(([,nc])=>{
     const div=document.createElement('div'); div.className='li missed';
     const avHTML = (nc.avatar||'🙂').startsWith('data:image') ? `<img src="${nc.avatar}" style="width:24px;height:24px;border-radius:50%;">` : `<span class="emo">${nc.avatar||'🙂'}</span>`;
-    div.innerHTML = `<div class="idx">—</div>${avHTML}<div class="name">${nc.name}</div><div class="tag">não clicou</div>`;
+    div.innerHTML = `<div class="idx">sem classificação</div>${avHTML}<div class="name">${nc.name}</div>`;
     listEl.appendChild(div);
   });
 
@@ -387,7 +388,6 @@ document.getElementById('resetScores').addEventListener('click', async ()=>{
   await roomRef.child('firstWinner').set({});
   await roomRef.child('roundIdx').set(0);
 });
-
 document.getElementById('rnum').textContent='1';
 </script>
 </body>
