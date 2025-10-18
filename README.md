@@ -173,6 +173,7 @@ function placeToken(cardEl,sid,posIdx,scale,clickable,onClick){
 
 let uid=null, me=null;
 let isHost=false, room=null, roomRef=null;
+let playersCache = {};
 let roundIdx=0, centerEls={}, mineEls={};
 let clickedInRound=false;
 
@@ -245,13 +246,31 @@ document.getElementById('joinRoom').addEventListener('click', async ()=>{
   subscribeRoom(); renderRound();
 });
 
+
 function subscribeRoom(){
   roomRef.child('roundIdx').on('value', s=>{
     roundIdx = s.val()||0;
     qs('#rnum').textContent=String(roundIdx+1);
     clickedInRound = false;
     renderRound();
+    // re-render do ranking da rodada ao trocar a rodada
+    if (window._lastWinnersSnapshot) renderRoundRank(window._lastWinnersSnapshot);
   });
+  roomRef.child('players').on('value', s=>{ playersCache = s.val()||{}; });
+  roomRef.child('scores').on('value', s=> updateTop3(s.val()||{}));
+  roomRef.child('roundWinners').on('value', s=>{
+    const all = s.val()||{};
+    const winnersObj = all[String(roundIdx)] || all[roundIdx] || {};
+    window._lastWinnersSnapshot = winnersObj;
+    renderRoundRank(winnersObj);
+  });
+  roomRef.child('showResults').on('value', s=>{
+    const v = s.val();
+    if (v && typeof v.round === 'number'){ showResultsModal(v.round); }
+    else { hideResultsModal(); }
+  });
+}
+);
   roomRef.child('scores').on('value', s=> updateTop3(s.val()||{}));
   roomRef.child('roundWinners/'+roundIdx).on('value', s=> renderRoundRank(s.val()||{}));
   roomRef.child('showResults').on('value', s=>{
@@ -290,10 +309,22 @@ function renderRound(){
   roomRef.child('roundWinners/'+roundIdx).once('value').then(s=> renderRoundRank(s.val()||{}));
 }
 
+
 function updateTop3(scores){
-  const playersRef = roomRef.child('players');
-  playersRef.once('value').then(ps=>{
-    const players = ps.val()||{};
+  const arr = Object.keys(playersCache||{}).map(uid => ({
+    uid,
+    name: (playersCache[uid]?.name || '??'),
+    pts: (scores && scores[uid]) ? scores[uid] : 0
+  }));
+  arr.sort((a,b)=> b.pts - a.pts || a.name.localeCompare(b.name));
+  const t = document.getElementById('topListText');
+  const ranks = [];
+  if (arr[0]) ranks.push(`1° Lugar ${arr[0].name} - ${arr[0].pts} acertos`);
+  if (arr[1]) ranks.push(`2° Lugar ${arr[1].name} - ${arr[1].pts} acertos`);
+  if (arr[2]) ranks.push(`3° Lugar ${arr[2].name} - ${arr[2].pts} acertos`);
+  t.textContent = ranks.length ? ranks.join('   /   ') : '—';
+}
+;
     const arr = Object.keys(scores).map(uid=>({uid, name:(players[uid]?.name||'??'), avatar:(players[uid]?.avatar||'🙂'), pts:scores[uid]||0}));
     arr.sort((a,b)=>b.pts-a.pts);
     const t = document.getElementById('topListText');
@@ -306,10 +337,45 @@ function updateTop3(scores){
   });
 }
 
+
 function renderRoundRank(winnersObj){
   const el = document.getElementById('roundRank');
   el.innerHTML = '';
-  const rows = Object.values(winnersObj||{});
+  const winners = Object.values(winnersObj||{}).slice().sort((a,b)=>(a.ts||0)-(b.ts||0));
+
+  // UIDs que acertaram
+  const clickerUIDs = new Set(Object.keys(winnersObj||{}));
+
+  // Monta lista "sem classificação" (não acertaram)
+  const nonClickers = Object.keys(playersCache||{})
+    .filter(uid => !clickerUIDs.has(uid))
+    .map(uid => ({ name: playersCache[uid]?.name || '??', avatar: playersCache[uid]?.avatar || '🙂' }))
+    .sort((a,b)=> a.name.localeCompare(b.name));
+
+  // Render vencedores/que acertaram
+  winners.forEach((w,i)=>{
+    const pill=document.createElement('div');
+    pill.className='rankpill';
+    const avHTML = (w.avatar||'🙂').startsWith('data:image') ? `<img src="${w.avatar}" style="width:22px;height:22px;border-radius:50%;">` : `<span class="emo">${w.avatar||'🙂'}</span>`;
+    const tag = i===0 ? '<span class="tag">Pontuou</span>' : '<span class="tag">Não pontuou</span>';
+    pill.innerHTML = `${avHTML}<strong>${i+1}º</strong> ${w.name} ${tag}`;
+    el.appendChild(pill);
+  });
+
+  // Render sem classificação
+  nonClickers.forEach(nc=>{
+    const pill=document.createElement('div');
+    pill.className='rankpill';
+    const avHTML = (nc.avatar||'🙂').startsWith('data:image') ? `<img src="${nc.avatar}" style="width:22px;height:22px;border-radius:50%;">` : `<span class="emo">${nc.avatar||'🙂'}</span>`;
+    pill.innerHTML = `${avHTML}<strong>sem classificação</strong> ${nc.name}`;
+    el.appendChild(pill);
+  });
+
+  if (!winners.length && !nonClickers.length){
+    el.innerHTML = '<span style="opacity:.7;">Aguardando acerto…</span>';
+  }
+}
+);
   if (!rows.length){ el.innerHTML = '<span style="opacity:.7;">Aguardando acerto…</span>'; return; }
   rows.sort((a,b)=>(a.ts||0)-(b.ts||0));
   rows.forEach((w,i)=>{
@@ -321,6 +387,7 @@ function renderRoundRank(winnersObj){
     el.appendChild(pill);
   });
 }
+
 
 async function showResultsModal(roundNumber){
   const overlay = document.getElementById('resultsOverlay');
@@ -335,12 +402,13 @@ async function showResultsModal(roundNumber){
   const players = playersSnap.val()||{};
   const winners = winnersSnap.val()||{};
 
-  const winnersArr = Object.values(winners).sort((a,b)=>(a.ts||0)-(b.ts||0));
+  const winnersArr = Object.values(winners).slice().sort((a,b)=>(a.ts||0)-(b.ts||0));
   const clickerUIDs = new Set(Object.keys(winners));
 
   const nonClickers = Object.entries(players)
-    .filter(([k,v])=>!clickerUIDs.has(k))
-    .map(([k,v])=>({name:v.name, avatar:v.avatar, isEmoji:v.isEmoji}));
+    .filter(([uid,_])=>!clickerUIDs.has(uid))
+    .map(([uid,v])=>({name:v.name, avatar:v.avatar}))
+    .sort((a,b)=> a.name.localeCompare(b.name));
 
   listEl.innerHTML='';
   let idx=1;
@@ -351,9 +419,7 @@ async function showResultsModal(roundNumber){
     div.innerHTML = `<div class="idx">${idx++}º</div>${avHTML}<div class="name">${w.name}</div><div class="tag">${tag}</div>`;
     listEl.appendChild(div);
   });
-  // sem classificação
-  nonClickers.sort((a,b)=> a[1].name.localeCompare(b[1].name));
-  nonClickers.forEach(([,nc])=>{
+  nonClickers.forEach(nc=>{
     const div=document.createElement('div'); div.className='li missed';
     const avHTML = (nc.avatar||'🙂').startsWith('data:image') ? `<img src="${nc.avatar}" style="width:24px;height:24px;border-radius:50%;">` : `<span class="emo">${nc.avatar||'🙂'}</span>`;
     div.innerHTML = `<div class="idx">sem classificação</div>${avHTML}<div class="name">${nc.name}</div>`;
@@ -372,6 +438,7 @@ async function showResultsModal(roundNumber){
   };
 }
 function hideResultsModal(){ document.getElementById('resultsOverlay').style.display='none'; }
+(){ document.getElementById('resultsOverlay').style.display='none'; }
 
 document.getElementById('next').addEventListener('click', async ()=>{
   if (!isHost) return alert('Somente o host pode mostrar os resultados.');
