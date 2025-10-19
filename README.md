@@ -174,6 +174,7 @@ function placeToken(cardEl,sid,posIdx,scale,clickable,onClick){
 let uid=null, me=null;
 let isHost=false, room=null, roomRef=null;
 let playersCache = {};
+let firstWinnersCache = {};
 let roundIdx=0, centerEls={}, mineEls={};
 let clickedInRound=false;
 
@@ -264,6 +265,11 @@ function subscribeRoom(){
     window._lastWinnersSnapshot = winnersObj;
     renderRoundRank(winnersObj);
   });
+  // <<< NOVO: ouvir a fonte da verdade do acumulado (quem foi 1º em cada rodada)
+  roomRef.child('firstWinner').on('value', s=>{
+    firstWinnersCache = s.val() || {};
+    updateTop3FromFirstWinner();
+  });
   roomRef.child('showResults').on('value', s=>{
     const v = s.val();
     if (v && typeof v.round === 'number'){ showResultsModal(v.round); }
@@ -310,8 +316,46 @@ function renderRound(){
 }
 
 
+
 function updateTop3(scores){
+  // Mantida para compatibilidade, mas damos preferência ao firstWinner
+  updateTop3FromFirstWinner(scores);
+}
+
+function updateTop3FromFirstWinner(fallbackScores){
+  // Conta quantas vezes cada UID aparece como o primeiro vencedor nas rodadas
+  const counts = {};
+  for (const [roundKey, obj] of Object.entries(firstWinnersCache || {})){
+    if (!obj || !obj.uid) continue;
+    const u = obj.uid;
+    counts[u] = (counts[u] || 0) + 1;
+  }
+  // Se ainda não houver firstWinner (sala recém-criada), usar scores como fallback
+  const sourceHasAny = Object.keys(counts).length > 0;
+  if (!sourceHasAny && fallbackScores){
+    for (const [u, pts] of Object.entries(fallbackScores || {})){
+      counts[u] = pts || 0;
+    }
+  }
+
+  // Monta vetor com nomes
   const arr = Object.keys(playersCache||{}).map(uid => ({
+    uid,
+    name: (playersCache[uid]?.name || '??'),
+    pts: counts[uid] || 0
+  }));
+  // Ordena por pontos desc e por nome asc
+  arr.sort((a,b)=> b.pts - a.pts || a.name.localeCompare(b.name));
+
+  // Renderiza no formato pedido
+  const t = document.getElementById('topListText');
+  const ranks = [];
+  if (arr[0]) ranks.push(`1° Lugar ${arr[0].name} – ${arr[0].pts} acertos`);
+  if (arr[1]) ranks.push(`2° Lugar ${arr[1].name} – ${arr[1].pts} acertos`);
+  if (arr[2]) ranks.push(`3° Lugar ${arr[2].name} – ${arr[2].pts} acertos`);
+  t.textContent = ranks.length ? ranks.join('   /   ') : '—';
+}
+).map(uid => ({
     uid,
     name: (playersCache[uid]?.name || '??'),
     pts: (scores && scores[uid]) ? scores[uid] : 0
