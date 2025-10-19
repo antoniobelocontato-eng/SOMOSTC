@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>dobble_v27h_static+dynamic_rooms_configured</title>
+<title>dobble_v27j_full_fixed_allrank</title>
 <style>
   :root { --bg:#b91c1c; --panel:#dc2626; --ink:#fff; --ring:#facc15; --card: clamp(250px, 44vw, 420px); }
   * { box-sizing:border-box }
@@ -47,7 +47,7 @@
   .roomgrid .btn{background:#ef4444;color:#fff}
   .hint{font-size:12px;opacity:.8;margin-top:6px}
   .rowflex{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
-  @media (max-width:880px){.roomgrid{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:880px){.grid2{grid-template-columns:1fr} .roomgrid{grid-template-columns:repeat(2,1fr)}}
   @media (max-width:520px){.roomgrid{grid-template-columns:1fr}}
 </style>
 </head>
@@ -153,16 +153,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.3/firebase-database-compat.js"></script>
 
 <script>
-const firebaseConfig = {
-  "apiKey": "AIzaSyB8fPk7QW9ARm_3B12w6J0g-3_kUJkxkq4",
-  "authDomain": "somos-tc.firebaseapp.com",
-  "databaseURL": "https://somos-tc-default-rtdb.firebaseio.com",
-  "projectId": "somos-tc",
-  "storageBucket": "somos-tc.firebasestorage.app",
-  "messagingSenderId": "561006578743",
-  "appId": "1:561006578743:web:9b93eaea9942d4b90383b2",
-  "measurementId": "G-ZSQNWW7NEZ"
-};
+const firebaseConfig = {"apiKey": "AIzaSyB8fPk7QW9ARm_3B12w6J0g-3_kUJkxkq4", "authDomain": "somos-tc.firebaseapp.com", "databaseURL": "https://somos-tc-default-rtdb.firebaseio.com", "projectId": "somos-tc", "storageBucket": "somos-tc.firebasestorage.app", "messagingSenderId": "561006578743", "appId": "1:561006578743:web:9b93eaea9942d4b90383b2", "measurementId": "G-ZSQNWW7NEZ"};
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
@@ -213,7 +204,7 @@ document.getElementById('avatarFile').addEventListener('change', (e)=>{
   reader.readAsDataURL(f);
 });
 
-// Helpers de layout
+// Layout
 const BASE_POS = [[28,26,44],[72,26,44],[50,50,40],[28,74,44],[72,74,44]];
 const SAFETY = 2;
 const hypot = (a,b)=>Math.hypot(a,b);
@@ -254,7 +245,7 @@ async function ensureUniqueName(baseName, roomPlayersRef){
   return `${baseName} (${n})`;
 }
 
-// Código aleatório (para salas dinâmicas)
+// Código aleatório (salas dinâmicas)
 function genCode(){
   const s='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
   let out='';
@@ -267,7 +258,7 @@ document.querySelectorAll('.roomgrid .btn').forEach(btn=>{
   btn.addEventListener('click', ()=> enterRoom(btn.dataset.room));
 });
 
-// Botão: gerar sala dinâmica (host)
+// Gera sala dinâmica (host)
 document.getElementById('genRoomBtn').addEventListener('click', async ()=>{
   const pwd = (qs('#hostPwd').value||'').trim();
   if (pwd !== 'CLARO') { alert('Para gerar uma nova sala, digite a senha do host (CLARO).'); return; }
@@ -276,7 +267,7 @@ document.getElementById('genRoomBtn').addEventListener('click', async ()=>{
   alert('Nova sala criada: ' + code + '. Compartilhe este código.');
 });
 
-// Botão: entrar pelo código (qualquer usuário)
+// Entra pelo código
 document.getElementById('joinCodeBtn').addEventListener('click', async ()=>{
   const code = (qs('#joinCode').value||'').trim().toUpperCase();
   if (!code) return alert('Digite um código de sala (ex.: H7Q2M).');
@@ -402,7 +393,7 @@ function renderRound(){
   roomRef.child('roundWinners/'+roundIdx).once('value').then(s=> renderRoundRank(s.val()||{}));
 }
 
-// Ranking geral acumulado (firstWinner)
+// Ranking geral acumulado (baseado nos primeiros vencedores)
 function updateTop3(scores){ updateTop3FromFirstWinner(scores); }
 function updateTop3FromFirstWinner(fallbackScores){
   const counts = {};
@@ -431,7 +422,7 @@ function updateTop3FromFirstWinner(fallbackScores){
   t.textContent = ranks.length ? ranks.join('   /   ') : '—';
 }
 
-// Ranking da rodada (com posições e "sem classificação")
+// Linha ao vivo (sob as cartas)
 function renderRoundRank(winnersObj){
   const el = document.getElementById('roundRank');
   el.innerHTML = '';
@@ -464,7 +455,7 @@ function renderRoundRank(winnersObj){
   }
 }
 
-// Modal de resultados com posições + sem classificação
+// Modal de resultados (TODOS com posições + sem classificação)
 async function showResultsModal(roundNumber){
   const overlay = document.getElementById('resultsOverlay');
   const listEl = document.getElementById('resultsList');
@@ -477,8 +468,10 @@ async function showResultsModal(roundNumber){
   ]);
   const players = playersSnap.val()||{};
   const winnersObj = winnersSnap.val()||{};
-  const winnersArr = Object.values(winnersObj).slice().sort((a,b)=>(a.ts||0)-(b.ts||0));
-  const clickerUIDs = new Set(Object.keys(winnersObj));
+  const winnersArr = Object.entries(winnersObj)
+    .map(([uid, w]) => ({uid, ...w}))
+    .sort((a,b)=>(a.ts||0)-(b.ts||0));
+  const clickerUIDs = new Set(winnersArr.map(w=>w.uid));
 
   listEl.innerHTML='';
   let idx=1;
@@ -512,7 +505,7 @@ async function showResultsModal(roundNumber){
 }
 function hideResultsModal(){ document.getElementById('resultsOverlay').style.display='none'; }
 
-// Botões principais
+// Botões
 document.getElementById('next').addEventListener('click', async ()=>{
   if (!isHost) return alert('Somente o host pode mostrar os resultados.');
   const current = roundIdx;
