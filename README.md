@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>dobble_v27d_fix_host_create_room</title>
+<title>dobble_v27e_host_diagnostics</title>
 <style>
   :root { --bg:#b91c1c; --panel:#dc2626; --ink:#fff; --ring:#facc15; --card: clamp(250px, 44vw, 420px); }
   * { box-sizing:border-box }
@@ -43,6 +43,8 @@
   .avatarPrev img{width:100%;height:100%;object-fit:cover}
   .emojis{display:flex;gap:6px;flex-wrap:wrap}
   .emojis button{font-size:22px;padding:6px 8px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;cursor:pointer}
+  .diag{margin-top:8px;font-size:12px;opacity:.9}
+  .diag b{color:#fff}
   @media (max-width:720px){.grid2{grid-template-columns:1fr} .idx{min-width:120px}}
 </style>
 </head>
@@ -81,6 +83,8 @@
     <div class="meta" style="margin-bottom:6px;">Ranking da rodada (sala):</div>
     <div class="rankrow" id="roundRank"><span style="opacity:.7;">Aguardando acerto…</span></div>
   </div>
+
+  <div class="diag" id="diagBox"></div>
 </div>
 
 <!-- Lobby -->
@@ -141,6 +145,19 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
 
+const diag = (msg) => { const el = document.getElementById('diagBox'); el.innerHTML = (el.innerHTML? el.innerHTML+'<br>':'') + msg; console.log('[diag]', msg); };
+
+// Aviso se config não foi preenchida
+(function(){
+  const vals = Object.values(firebaseConfig||{}).join('|');
+  if (/PASTE_/.test(vals)) {
+    diag('<b>Aviso:</b> cole sua firebaseConfig (apiKey, databaseURL, etc.) em const firebaseConfig = {...}.');
+  }
+  if (!/firebasedatabase\.app|firebaseio\.com/.test(firebaseConfig.databaseURL||'')){
+    diag('<b>Aviso:</b> databaseURL parece inválido. Use o formato https://SEU_ID-default-rtdb.REGIAO.firebasedatabase.app');
+  }
+})();
+
 // Aguarda o Firebase Auth estar pronto e garante um UID válido
 async function ensureAuth(){
   if (auth.currentUser && auth.currentUser.uid){ uid = auth.currentUser.uid; return uid; }
@@ -148,9 +165,10 @@ async function ensureAuth(){
     if (!auth.currentUser){ await auth.signInAnonymously(); }
   }catch(e){
     console.error('Falha ao autenticar anonimamente:', e);
+    diag('<b>Auth erro:</b> ' + (e.code||'') + ' ' + (e.message||e));
   }
   return await new Promise((resolve, reject)=>{
-    const t = setTimeout(()=>reject(new Error('Timeout aguardando autenticação')), 8000);
+    const t = setTimeout(()=>{ diag('<b>Auth timeout</b>'); reject(new Error('Timeout aguardando autenticação')); }, 8000);
     const unsub = auth.onAuthStateChanged(u=>{
       if (u){
         clearTimeout(t); unsub();
@@ -232,12 +250,29 @@ async function ensureUniqueName(baseName, roomPlayersRef){
   return `${baseName} (${n})`;
 }
 
+// Teste de conectividade/escrita antes de criar a sala
+async function dbPing(myUid){
+  try{
+    const path = '_ping/'+myUid;
+    await db.ref(path).set(firebase.database.ServerValue.TIMESTAMP);
+    const got = await db.ref(path).get();
+    if (!got.exists()) { throw new Error('Ping sem retorno (ver regras do DB)'); }
+    return true;
+  }catch(e){
+    diag('<b>DB ping erro:</b> ' + (e.code||'') + ' ' + (e.message||e));
+    return false;
+  }
+}
+
 document.getElementById('createRoom').addEventListener('click', async ()=>{
   const baseName=(qs('#playerName').value||'').trim(); if(!baseName) return alert('Digite seu nome');
   const img=avatarPrev.dataset.img||''; const emo=avatarPrev.dataset.emo||'🙂';
   try{
     const myUid = await ensureAuth();
     if (!myUid) throw new Error('Sem UID (auth)');
+    const ok = await dbPing(myUid);
+    if (!ok) { alert('Falha na escrita no Realtime Database. Veja diagnóstico abaixo.'); return; }
+
     const id = code();
     roomRef = db.ref('rooms/'+id);
     await roomRef.set({ createdAt: firebase.database.ServerValue.TIMESTAMP, host: myUid, roundIdx: 0, rounds: DECK.rounds, scores: {}, state: 'playing' });
@@ -251,7 +286,8 @@ document.getElementById('createRoom').addEventListener('click', async ()=>{
     alert('Sala criada: ' + room);
   }catch(e){
     console.error(e);
-    alert('Não foi possível criar a sala. Verifique sua conexão e a configuração do Firebase.');
+    diag('<b>Erro criar sala:</b> ' + (e.code||'') + ' ' + (e.message||e));
+    alert('Não foi possível criar a sala. Veja o diagnóstico (texto embaixo) e verifique sua configuração do Firebase.');
   }
 });
 
@@ -262,6 +298,9 @@ document.getElementById('joinRoom').addEventListener('click', async ()=>{
   try{
     const myUid = await ensureAuth();
     if (!myUid) throw new Error('Sem UID (auth)');
+    const ok = await dbPing(myUid);
+    if (!ok) { alert('Falha na escrita no Realtime Database. Veja diagnóstico abaixo.'); return; }
+
     roomRef = db.ref('rooms/'+id);
     const snap = await roomRef.get();
     if(!snap.exists()) return alert('Sala não encontrada');
@@ -274,7 +313,8 @@ document.getElementById('joinRoom').addEventListener('click', async ()=>{
     subscribeRoom(); renderRound();
   }catch(e){
     console.error(e);
-    alert('Não foi possível entrar na sala. Verifique sua conexão e a configuração do Firebase.');
+    diag('<b>Erro entrar sala:</b> ' + (e.code||'') + ' ' + (e.message||e));
+    alert('Não foi possível entrar na sala. Veja o diagnóstico (texto embaixo) e verifique sua configuração do Firebase.');
   }
 });
 
