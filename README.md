@@ -274,6 +274,32 @@ document.getElementById('joinCodeBtn').addEventListener('click', async ()=>{
   await enterRoom(code);
 });
 
+// Auto-entrar ao digitar o código (participante):
+(function(){
+  const joinInput = document.getElementById('joinCode');
+  let autoJoinTimer = null;
+  function tryAutoJoin(){
+    const codeRaw = (joinInput.value||'').trim().toUpperCase();
+    joinInput.value = codeRaw;
+    if (!codeRaw) return;
+    // Aguarda o usuário parar de digitar por 350ms
+    if (autoJoinTimer) clearTimeout(autoJoinTimer);
+    autoJoinTimer = setTimeout(()=>{
+      // Nossos códigos têm 5 caracteres; se maior/igual a 5, tentamos entrar
+      if (codeRaw.length >= 5) { enterRoom(codeRaw); }
+    }, 350);
+  }
+  joinInput.addEventListener('input', tryAutoJoin);
+  joinInput.addEventListener('keyup', (e)=>{
+    if (e.key === 'Enter'){
+      const codeRaw = (joinInput.value||'').trim().toUpperCase();
+      joinInput.value = codeRaw;
+      if (codeRaw) enterRoom(codeRaw);
+    }
+  });
+})();
+
+
 async function enterRoom(roomId, opts={}){
   const baseName=(qs('#playerName').value||'').trim();
   if(!baseName) return alert('Digite seu nome');
