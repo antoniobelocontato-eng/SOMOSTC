@@ -40,6 +40,24 @@
   .name{font-weight:700}
   .tag{font-size:12px;opacity:.75}
   .hint{font-size:12px;opacity:.8;margin-top:6px}
+
+  /* ===== Mobile tweaks ===== */
+  @media (max-width: 860px){
+    .grid2{ grid-template-columns: 1fr; }
+    :root { --card: min(92vw, 68vh); }
+    .wrap{ padding: 10px 8px; }
+    .head{ padding: 8px; }
+    .title{ font-size: 15px; }
+    .topline{ font-size: 16px; }
+    .toplist{ font-size: 13px; }
+    .controls{ gap: 10px; }
+    .roundbox{ margin-top: 8px; }
+  }
+  /* Cartas ainda mais seguras em telas muito pequenas */
+  @media (max-width: 420px){
+    :root { --card: min(94vw, 62vh); }
+  }
+
 </style>
 </head>
 <body>
@@ -359,18 +377,13 @@ function renderRound(){
 
 // Ranking geral acumulado
 function updateTop3(scores){ updateTop3FromFirstWinner(scores); }
-function updateTop3FromFirstWinner(fallbackScores){
+function updateTop3FromFirstWinner(){
+  // Conta apenas quantas vezes cada UID apareceu como primeiro vencedor (firstWinner)
   const counts = {};
   for (const [roundKey, obj] of Object.entries(firstWinnersCache || {})){
     if (!obj || !obj.uid) continue;
     const u = obj.uid;
     counts[u] = (counts[u] || 0) + 1;
-  }
-  const sourceHasAny = Object.keys(counts).length > 0;
-  if (!sourceHasAny && fallbackScores){
-    for (const [u, pts] of Object.entries(fallbackScores || {})){
-      counts[u] = pts || 0;
-    }
   }
   const arr = Object.keys(playersCache||{}).map(uid => ({
     uid,
@@ -383,38 +396,7 @@ function updateTop3FromFirstWinner(fallbackScores){
   if (arr[0]) ranks.push(`1° Lugar ${arr[0].name} – ${arr[0].pts} acertos`);
   if (arr[1]) ranks.push(`2° Lugar ${arr[1].name} – ${arr[1].pts} acertos`);
   if (arr[2]) ranks.push(`3° Lugar ${arr[2].name} – ${arr[2].pts} acertos`);
-  t.textContent = ranks.length ? ranks.join('   /   ') : '—';
-}
-
-// Linha de ranking ao vivo
-function renderRoundRank(winnersObj){
-  const el = document.getElementById('roundRank');
-  el.innerHTML = '';
-  const winnersArr = Object.entries(winnersObj||{})
-    .map(([uid, w]) => ({uid, ...w}))
-    .sort((a,b)=>(a.ts||0)-(b.ts||0));
-
-  winnersArr.forEach((w,i)=>{
-    const pill=document.createElement('div'); pill.className='rankpill';
-    const tag = i===0 ? '<span class="tag">Pontuou</span>' : '<span class="tag">Não pontuou</span>';
-    pill.innerHTML = `<strong>${i+1}º</strong> ${w.name} ${tag}`;
-    el.appendChild(pill);
-  });
-
-  const clickerUIDs = new Set(winnersArr.map(w=>w.uid));
-  const nonClickers = Object.keys(playersCache||{})
-    .filter(u => !clickerUIDs.has(u))
-    .map(u => ({ name: playersCache[u]?.name || '??' }))
-    .sort((a,b)=> a.name.localeCompare(b.name));
-  nonClickers.forEach(nc=>{
-    const pill=document.createElement('div'); pill.className='rankpill';
-    pill.innerHTML = `<strong>sem classificação</strong> ${nc.name}`;
-    el.appendChild(pill);
-  });
-
-  if (!winnersArr.length && !nonClickers.length){
-    el.innerHTML = '<span style="opacity:.7;">Aguardando acerto…</span>';
-  }
+  t.textContent = ranks.length ? ranks.join(' / ') : '—';
 }
 
 // Modal de resultados
@@ -458,7 +440,6 @@ async function showResultsModal(roundNumber){
   overlay.style.display='flex';
   btn.onclick = async () => {
     await roomRef.child('guesses/'+roundNumber).set(null);
-    await roomRef.child('firstWinner/'+roundNumber).set(null);
     await roomRef.child('showResults').set(null);
     await roomRef.child('roundIdx').transaction(v => ((v||0)+1) % DECK.rounds.length);
   };
