@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>dobble_v27k_auto_join_by_code</title>
+<title>dobble_v27l_no_predef_rooms_no_avatar_autojoin</title>
 <style>
   :root { --bg:#b91c1c; --panel:#dc2626; --ink:#fff; --ring:#facc15; --card: clamp(250px, 44vw, 420px); }
   * { box-sizing:border-box }
@@ -39,16 +39,7 @@
   .idx{font-weight:800;min-width:140px;text-align:left}
   .name{font-weight:700}
   .tag{font-size:12px;opacity:.75}
-  .avatarPrev{width:56px;height:56px;border-radius:50%;background:#f3f4f6;display:grid;place-items:center;overflow:hidden;border:1px solid #e5e7eb}
-  .avatarPrev img{width:100%;height:100%;object-fit:cover}
-  .emojis{display:flex;gap:6px;flex-wrap:wrap}
-  .emojis button{font-size:22px;padding:6px 8px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;cursor:pointer}
-  .roomgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:6px}
-  .roomgrid .btn{background:#ef4444;color:#fff}
   .hint{font-size:12px;opacity:.8;margin-top:6px}
-  .rowflex{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
-  @media (max-width:880px){.grid2{grid-template-columns:1fr} .roomgrid{grid-template-columns:repeat(2,1fr)}}
-  @media (max-width:520px){.roomgrid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -88,51 +79,34 @@
   </div>
 </div>
 
-<!-- Lobby com salas fixas + criação dinâmica -->
+<!-- Lobby mínimo: apenas nome + host (senha) e entrar por código -->
 <div class="overlay" id="lobbyOverlay" style="display:flex;">
   <div class="modal">
-    <h3 style="margin:0 0 10px 0;">Dobble — Sala</h3>
+    <h3 style="margin:0 0 10px 0;">Dobble — Entrar na Sala</h3>
     <div class="field">
       <label>Seu nome</label><br>
       <input id="playerName" type="text" placeholder="Ex.: Antonio" style="width:100%; padding:8px 10px; border:1px solid #e5e7eb; border-radius:8px;">
     </div>
-    <div class="field" style="margin-top:8px;">
-      <div style="display:flex; gap:12px;">
-        <div class="avatarPrev" id="avatarPreview"><span class="emo">🙂</span></div>
-        <div style="flex:1;">
-          <div style="font-weight:700; margin-bottom:6px;">Avatar</div>
-          <div class="emojis" id="emojiList">
-            <button>🙂</button><button>😀</button><button>😎</button><button>🤩</button>
-            <button>🤖</button><button>🐱</button><button>🐶</button><button>🐯</button>
-            <button>🐵</button><button>🦊</button><button>🐼</button><button>🦄</button>
-          </div>
-          <div style="margin-top:8px;">
-            ou envie uma foto (JPG/PNG): <input id="avatarFile" type="file" accept="image/png, image/jpeg">
-          </div>
-        </div>
+
+    <div class="field" style="margin-top:10px;">
+      <label>Para ser um host, digite a senha (CLARO) e crie uma sala com código:</label><br>
+      <input id="hostPwd" type="password" placeholder="Senha do host (opcional)" style="width:100%; padding:8px 10px; border:1px solid #e5e7eb; border-radius:8px;">
+      <div class="hint">Sem a senha, você entra como participante.</div>
+      <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
+        <button class="btn" id="genRoomBtn" style="background:#0ea5e9;color:#fff;">Gerar sala com código</button>
+        <span class="hint">O código será mostrado para você compartilhar.</span>
       </div>
     </div>
-    <div class="field" style="margin-top:10px;">
-      <label>Para ser um host, digite a senha:</label><br>
-      <input id="hostPwd" type="password" placeholder="Senha do host (opcional)" style="width:100%; padding:8px 10px; border:1px solid #e5e7eb; border-radius:8px;">
-      <div class="hint">A senha de host é <b>CLARO</b>. Sem a senha você entra como participante.</div>
-    </div>
+
     <hr style="margin:12px 0;">
-    <div>Escolha uma das salas pré-definidas:</div>
-    <div class="roomgrid">
-      <button class="btn" data-room="ROOM01">Sala 01</button>
-      <button class="btn" data-room="ROOM02">Sala 02</button>
-      <button class="btn" data-room="ROOM03">Sala 03</button>
-      <button class="btn" data-room="ROOM04">Sala 04</button>
-      <button class="btn" data-room="ROOM05">Sala 05</button>
+    <div class="field">
+      <label>Entrar pelo código da sala:</label><br>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <input id="joinCode" placeholder="Ex.: H7Q2M" style="padding:8px;border:1px solid #e5e7eb;border-radius:8px;">
+        <button class="btn" id="joinCodeBtn" style="background:#16a34a;color:#fff;">Entrar pelo código</button>
+        <span class="hint">Ao digitar (5+), você entra automaticamente.</span>
+      </div>
     </div>
-    <div class="rowflex">
-      <span class="hint">Ou, como host, gere uma nova sala com código:</span>
-      <button class="btn" id="genRoomBtn" style="background:#0ea5e9;color:#fff;">Gerar sala com código</button>
-      <input id="joinCode" placeholder="Código para entrar (ex.: H7Q2M)" style="padding:8px;border:1px solid #e5e7eb;border-radius:8px;">
-      <button class="btn" id="joinCodeBtn" style="background:#16a34a;color:#fff;">Entrar pelo código</button>
-    </div>
-    <div class="hint">Ao digitar seu código (5+ caracteres), você entra automaticamente.</div>
   </div>
 </div>
 
@@ -186,65 +160,6 @@ async function ensureAuth(){
   });
 }
 
-// Avatar
-const avatarPrev = document.getElementById('avatarPreview');
-document.getElementById('emojiList').addEventListener('click', (e)=>{
-  if (e.target.tagName === 'BUTTON'){
-    avatarPrev.innerHTML = `<span class="emo">${e.target.textContent}</span>`;
-    avatarPrev.dataset.emo = e.target.textContent;
-    avatarPrev.dataset.img = '';
-  }
-});
-document.getElementById('avatarFile').addEventListener('change', (e)=>{
-  const f=e.target.files[0]; if(!f) return;
-  const ok = ['image/jpeg','image/png'];
-  if (!ok.includes(f.type)){ alert('Formato inválido. Envie JPG ou PNG.'); e.target.value=''; return; }
-  const reader=new FileReader();
-  reader.onload=()=>{ avatarPrev.innerHTML=`<img src="${reader.result}">`; avatarPrev.dataset.img=reader.result; avatarPrev.dataset.emo=''; };
-  reader.readAsDataURL(f);
-});
-
-// Layout das cartas
-const BASE_POS = [[28,26,44],[72,26,44],[50,50,40],[28,74,44],[72,74,44]];
-const SAFETY = 2;
-const hypot = (a,b)=>Math.hypot(a,b);
-const clamp = (x,a,b)=>Math.max(a,Math.min(b,x));
-function computeScale(posList){
-  let s=1.0;
-  for(const [x,y,sz] of posList){ const r=sz/2;
-    s=Math.min(s,(x-SAFETY)/r,(100-x-SAFETY)/r,(y-SAFETY)/r,(100-y-SAFETY)/r); }
-  for(let i=0;i<posList.length;i++){ for(let j=i+1;j<posList.length;j++){
-    const [x1,y1,sz1]=posList[i],[x2,y2,sz2]=posList[j];
-    const d=hypot(x2-x1,y2-y1), rsum=(sz1+sz2)/2; s=Math.min(s,(d-SAFETY)/rsum);
-  }}
-  return clamp(s,0.62,1.0);
-}
-function assignPositions(ids,pref){ const used=new Set(), out={};
-  if(pref){ for(const sid of ids){ const p=pref[sid]; if(p!=null && !used.has(p)){ out[sid]=p; used.add(p);} } }
-  for(const sid of ids){ if(out[sid]==null){ for(let i=0;i<BASE_POS.length;i++){ if(!used.has(i)){ out[sid]=i; used.add(i); break; } } } }
-  return out;
-}
-function placeToken(cardEl,sid,posIdx,scale,clickable,onClick){
-  const [x,y,sz0]=BASE_POS[posIdx]; const sz=sz0*scale;
-  const t=document.createElement('button'); t.className='token';
-  t.style.width=sz+'%'; t.style.height=sz+'%'; t.style.left=`calc(${x}% - ${sz/2}%)`; t.style.top=`calc(${y}% - ${sz/2}%)`;
-  const sym=DECK.symbols.find(s=>s.id===sid);
-  t.innerHTML=`<img alt="${sym.label}" src="${sym.img}">`;
-  if(clickable) t.addEventListener('click', onClick);
-  cardEl.appendChild(t); return t;
-}
-
-// Garantir nome único por sala
-async function ensureUniqueName(baseName, roomPlayersRef){
-  const snap = await roomPlayersRef.get();
-  const players = snap.val()||{};
-  const existing = new Set(Object.values(players).map(p=>p.name));
-  if (!existing.has(baseName)) return baseName;
-  let n=2;
-  while (existing.has(`${baseName} (${n})`)) n++;
-  return `${baseName} (${n})`;
-}
-
 // Código aleatório (salas dinâmicas)
 function genCode(){
   const s='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -252,11 +167,6 @@ function genCode(){
   for(let i=0;i<5;i++) out+=s[Math.floor(Math.random()*s.length)];
   return out;
 }
-
-// Entradas — salas fixas
-document.querySelectorAll('.roomgrid .btn').forEach(btn=>{
-  btn.addEventListener('click', ()=> enterRoom(btn.dataset.room));
-});
 
 // Gera sala dinâmica (host)
 document.getElementById('genRoomBtn').addEventListener('click', async ()=>{
@@ -267,14 +177,14 @@ document.getElementById('genRoomBtn').addEventListener('click', async ()=>{
   alert('Nova sala criada: ' + code + '. Compartilhe este código.');
 });
 
-// Entra pelo código (botão)
+// Botão "Entrar pelo código"
 document.getElementById('joinCodeBtn').addEventListener('click', async ()=>{
   const code = (qs('#joinCode').value||'').trim().toUpperCase();
   if (!code) return alert('Digite um código de sala (ex.: H7Q2M).');
-  await enterRoom(code);
+  await enterRoom(code, {forceJoin:true});
 });
 
-// Auto-entrar ao digitar o código (5+ chars) + Enter
+// Auto-entrar ao digitar (5+ chars) + Enter
 (function(){
   const joinInput = document.getElementById('joinCode');
   let autoJoinTimer = null;
@@ -284,33 +194,36 @@ document.getElementById('joinCodeBtn').addEventListener('click', async ()=>{
     if (!codeRaw) return;
     if (autoJoinTimer) clearTimeout(autoJoinTimer);
     autoJoinTimer = setTimeout(()=>{
-      if (codeRaw.length >= 5) { enterRoom(codeRaw); }
-    }, 350);
+      if (codeRaw.length >= 5) { enterRoom(codeRaw, {forceJoin:true}); }
+    }, 300);
   }
   joinInput.addEventListener('input', tryAutoJoin);
   joinInput.addEventListener('keyup', (e)=>{
     if (e.key === 'Enter'){
       const codeRaw = (joinInput.value||'').trim().toUpperCase();
       joinInput.value = codeRaw;
-      if (codeRaw) enterRoom(codeRaw);
+      if (codeRaw) enterRoom(codeRaw, {forceJoin:true});
     }
   });
 })();
 
+// Entra/Cria Sala
 async function enterRoom(roomId, opts={}){
   const baseName=(qs('#playerName').value||'').trim();
   if(!baseName) return alert('Digite seu nome');
-  const img=avatarPrev.dataset.img||''; const emo=avatarPrev.dataset.emo||'🙂';
-  const wantHost = opts.forceHost || ((qs('#hostPwd').value||'').trim() === 'CLARO');
 
   try{
     const myUid = await ensureAuth();
     roomRef = db.ref('rooms/'+roomId);
 
+    const wantHost = opts.forceHost || ((qs('#hostPwd').value||'').trim() === 'CLARO');
     if (wantHost){
       const ok = await roomRef.child('host').transaction(cur => cur || myUid, undefined, false)
         .then(res => res.committed && res.snapshot.val() === myUid);
       if (!ok) { alert('Esta sala já possui host. Entre como participante (limpe a senha).'); return; }
+    }
+    // Participante: sempre segue; se host, inicializa a sala se necessário
+    if (wantHost){
       await roomRef.transaction(cur => cur || {
         createdAt: firebase.database.ServerValue.TIMESTAMP,
         host: myUid,
@@ -323,27 +236,23 @@ async function enterRoom(roomId, opts={}){
       });
       isHost = true;
     } else {
-      const hostSnap = await roomRef.child('host').get();
-      if (!hostSnap.exists()){ alert('Aguardando o host entrar com a senha nesta sala. Tente novamente em alguns segundos.'); return; }
-      const roundsSnap = await roomRef.child('rounds').get();
-      if (!roundsSnap.exists()){
-        const unsub = roomRef.child('rounds').on('value', async s=>{
-          if (s.exists()){
-            roomRef.child('rounds').off('value', unsub);
-            await proceedJoin();
-          }
-        });
-        alert('Host presente. Preparando a sala…');
-        return;
-      }
-      isHost = false;
+      isHost = false; // entra imediatamente, sem checar host/rounds
     }
 
     await proceedJoin();
 
     async function proceedJoin(){
-      const name = await ensureUniqueName(baseName, roomRef.child('players'));
-      me = {name, avatar: img||emo, isEmoji: !img};
+      // Nome único por sala
+      const snapP = await roomRef.child('players').get();
+      const players = snapP.val()||{};
+      const existing = new Set(Object.values(players).map(p=>p.name));
+      let name = baseName;
+      if (existing.has(name)){
+        let n=2
+        while (existing.has(f"{baseName} ({n})")) n+=1
+        name = f"{baseName} ({n})"
+      }
+      me = {name};
       await roomRef.child('players/'+myUid).set(me);
 
       room = roomId;
@@ -362,7 +271,8 @@ async function enterRoom(roomId, opts={}){
 
 function subscribeRoom(){
   roomRef.child('roundIdx').on('value', s=>{
-    roundIdx = s.val()||0;
+    const v = s.val();
+    roundIdx = (typeof v === 'number') ? v : 0;
     qs('#rnum').textContent=String(roundIdx+1);
     clickedInRound = false;
     renderRound();
@@ -388,14 +298,46 @@ function subscribeRoom(){
 }
 
 function renderRound(){
-  const r=DECK.rounds[roundIdx], center=DECK.cards[r.center], mine=DECK.cards[r.mine], common=r.match;
+  const r = (DECK.rounds[roundIdx] || {center:0, mine:1, match:0});
+  const center=DECK.cards[r.center], mine=DECK.cards[r.mine], common=r.match;
   const centerEl=document.getElementById('center'), mineEl=document.getElementById('mine');
   clear(centerEl); clear(mineEl);
+
+  const BASE_POS = [[28,26,44],[72,26,44],[50,50,40],[28,74,44],[72,74,44]];
+  const SAFETY = 2;
+  const hypot = (a,b)=>Math.hypot(a,b);
+  const clamp = (x,a,b)=>Math.max(a,Math.min(b,x));
+  function computeScale(posList){
+    let s=1.0;
+    for(const [x,y,sz] of posList){ const r=sz/2;
+      s=Math.min(s,(x-SAFETY)/r,(100-x-SAFETY)/r,(y-SAFETY)/r,(100-y-SAFETY)/r); }
+    for(let i=0;i<posList.length;i++){ for(let j=i+1;j<posList.length;j++){
+      const [x1,y1,sz1]=posList[i],[x2,y2,sz2]=posList[j];
+      const d=hypot(x2-x1,y2-y1), rsum=(sz1+sz2)/2; s=Math.min(s,(d-SAFETY)/rsum);
+    }}
+    return clamp(s,0.62,1.0);
+  }
+  function assignPositions(ids,pref){ const used=new Set(), out={};
+    if(pref){ for(const sid of ids){ const p=pref[sid]; if(p!=null && !used.has(p)){ out[sid]=p; used.add(p);} } }
+    for(const sid of ids){ if(out[sid]==null){ for(let i=0;i<BASE_POS.length;i++){ if(!used.has(i)){ out[sid]=i; used.add(i); break; } } } }
+    return out;
+  }
+  function placeToken(cardEl,sid,posIdx,scale,clickable,onClick){
+    const [x,y,sz0]=BASE_POS[posIdx]; const sz=sz0*scale;
+    const t=document.createElement('button'); t.className='token';
+    t.style.width=sz+'%'; t.style.height=sz+'%'; t.style.left=`calc(${x}% - ${sz/2}%)`; t.style.top=`calc(${y}% - ${sz/2}%)`;
+    const sym=DECK.symbols.find(s=>s.id===sid);
+    t.innerHTML=`<img alt="${sym.label}" src="${sym.img}">`;
+    if(clickable) t.addEventListener('click', onClick);
+    cardEl.appendChild(t); return t;
+  }
+
   const mapCenter=assignPositions(center,null);
-  const mapMine=assignPositions(mine, {[common]:(mapCenter[common]+1)%BASE_POS.length});
+  const mapMine=assignPositions(mine, {[common]:(mapCenter[common]+1)%5});
   const scaleCenter=computeScale(center.map(sid=>BASE_POS[mapCenter[sid]]));
   const scaleMine=computeScale(mine.map(sid=>BASE_POS[mapMine[sid]]));
-  centerEls={}; mineEls={};
+  const centerEls={}, mineEls={};
+
   center.forEach(sid=>centerEls[sid]=placeToken(centerEl,sid,mapCenter[sid],scaleCenter,false,null));
   mine.forEach(sid=>mineEls[sid]=placeToken(mineEl,sid,mapMine[sid],scaleMine,true,()=>{
     if (clickedInRound) return; clickedInRound = true;
@@ -404,9 +346,9 @@ function renderRound(){
       if (err || !committed) return;
       if (sid!==common) return;
       const winnerRef = roomRef.child('roundWinners/'+roundIdx+'/'+uid);
-      winnerRef.transaction(cur => cur || {name: me.name, avatar: me.avatar, isEmoji: me.isEmoji, ts: firebase.database.ServerValue.TIMESTAMP});
+      winnerRef.transaction(cur => cur || {name: (me?.name||'Jogador'), ts: firebase.database.ServerValue.TIMESTAMP});
       const firstRef = roomRef.child('firstWinner/'+roundIdx);
-      firstRef.transaction(cur => cur || {uid, name: me.name, ts: firebase.database.ServerValue.TIMESTAMP}, (wErr, wCommitted)=>{
+      firstRef.transaction(cur => cur || {uid, name: (me?.name||'Jogador'), ts: firebase.database.ServerValue.TIMESTAMP}, (wErr, wCommitted)=>{
         if (wErr || !wCommitted) return;
         roomRef.child('scores/'+uid).transaction(v => (v||0)+1);
         centerEls[sid]?.classList.add('is-match'); mineEls[sid]?.classList.add('is-match');
@@ -445,7 +387,7 @@ function updateTop3FromFirstWinner(fallbackScores){
   t.textContent = ranks.length ? ranks.join('   /   ') : '—';
 }
 
-// Linha de ranking ao vivo
+// Linha de ranking ao vivo (sem avatar)
 function renderRoundRank(winnersObj){
   const el = document.getElementById('roundRank');
   el.innerHTML = '';
@@ -455,21 +397,19 @@ function renderRoundRank(winnersObj){
 
   winnersArr.forEach((w,i)=>{
     const pill=document.createElement('div'); pill.className='rankpill';
-    const avHTML = (w.avatar||'🙂').startsWith('data:image') ? `<img src="${w.avatar}" style="width:22px;height:22px;border-radius:50%;">` : `<span class="emo">${w.avatar||'🙂'}</span>`;
     const tag = i===0 ? '<span class="tag">Pontuou</span>' : '<span class="tag">Não pontuou</span>';
-    pill.innerHTML = `${avHTML}<strong>${i+1}º</strong> ${w.name} ${tag}`;
+    pill.innerHTML = `<strong>${i+1}º</strong> ${w.name} ${tag}`;
     el.appendChild(pill);
   });
 
   const clickerUIDs = new Set(winnersArr.map(w=>w.uid));
   const nonClickers = Object.keys(playersCache||{})
     .filter(u => !clickerUIDs.has(u))
-    .map(u => ({ name: playersCache[u]?.name || '??', avatar: playersCache[u]?.avatar || '🙂' }))
+    .map(u => ({ name: playersCache[u]?.name || '??' }))
     .sort((a,b)=> a.name.localeCompare(b.name));
   nonClickers.forEach(nc=>{
     const pill=document.createElement('div'); pill.className='rankpill';
-    const avHTML = (nc.avatar||'🙂').startsWith('data:image') ? `<img src="${nc.avatar}" style="width:22px;height:22px;border-radius:50%;">` : `<span class="emo">${nc.avatar||'🙂'}</span>`;
-    pill.innerHTML = `${avHTML}<strong>sem classificação</strong> ${nc.name}`;
+    pill.innerHTML = `<strong>sem classificação</strong> ${nc.name}`;
     el.appendChild(pill);
   });
 
@@ -478,7 +418,7 @@ function renderRoundRank(winnersObj){
   }
 }
 
-// Modal de resultados: todos com posições + sem classificação
+// Modal de resultados (sem avatar)
 async function showResultsModal(roundNumber){
   const overlay = document.getElementById('resultsOverlay');
   const listEl = document.getElementById('resultsList');
@@ -500,19 +440,17 @@ async function showResultsModal(roundNumber){
   let idx=1;
   winnersArr.forEach(w=>{
     const div=document.createElement('div'); div.className='li';
-    const avHTML = (w.avatar||'🙂').startsWith('data:image') ? `<img src="${w.avatar}" style="width:24px;height:24px;border-radius:50%;">` : `<span class="emo">${w.avatar||'🙂'}</span>`;
     const tag = idx===1 ? 'Pontuou' : 'Não pontuou';
-    div.innerHTML = `<div class="idx">${idx++}º</div>${avHTML}<div class="name">${w.name}</div><div class="tag">${tag}</div>`;
+    div.innerHTML = `<div class="idx">${idx++}º</div><div class="name">${w.name}</div><div class="tag">${tag}</div>`;
     listEl.appendChild(div);
   });
   Object.entries(players)
     .filter(([u,_])=>!clickerUIDs.has(u))
-    .map(([u,v])=>({name:v.name, avatar:v.avatar}))
+    .map(([u,v])=>({name:v.name}))
     .sort((a,b)=> a.name.localeCompare(b.name))
     .forEach(nc=>{
       const div=document.createElement('div'); div.className='li missed';
-      const avHTML = (nc.avatar||'🙂').startsWith('data:image') ? `<img src="${nc.avatar}" style="width:24px;height:24px;border-radius:50%;">` : `<span class="emo">${nc.avatar||'🙂'}</span>`;
-      div.innerHTML = `<div class="idx">sem classificação</div>${avHTML}<div class="name">${nc.name}</div>`;
+      div.innerHTML = `<div class="idx">sem classificação</div><div class="name">${nc.name}</div>`;
       listEl.appendChild(div);
     });
 
