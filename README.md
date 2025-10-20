@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>dobble_v27s_final_all</title>
+<title>dobble_v27u_rank_firstwinner_fix</title>
 <style>
   :root { --bg:#b91c1c; --panel:#dc2626; --ink:#fff; --ring:#facc15; --card: clamp(250px, 44vw, 420px); }
   * { box-sizing:border-box }
@@ -387,22 +387,32 @@ function renderRound(){
 
 function updateTop3FromFirstWinner(){
   const counts = {};
+  const uidName = {};
+  // Conta apenas o 1º vencedor de cada rodada (firstWinner)
   for (const [roundKey, obj] of Object.entries(firstWinnersCache || {})){
     if (!obj || !obj.uid) continue;
     const u = obj.uid;
     counts[u] = (counts[u] || 0) + 1;
+    if (!uidName[u]) uidName[u] = (obj.name || '??');
   }
-  const arr = Object.keys(playersCache||{}).map(uid => ({
+  // Atualiza nome por players, se disponível
+  for (const [u, p] of Object.entries(playersCache || {})){
+    if (p && p.name){ uidName[u] = p.name; }
+  }
+  // Monta somente quem tem pontos
+  const arr = Object.keys(counts).map(uid => ({
     uid,
-    name: (playersCache[uid]?.name || '??'),
+    name: uidName[uid] || '??',
     pts: counts[uid] || 0
   }));
+  // Ordena por pontos desc, depois nome
   arr.sort((a,b)=> b.pts - a.pts || a.name.localeCompare(b.name));
+  // Renderiza top 3
   const t = document.getElementById('topListText');
   const ranks = [];
-  if (arr[0]) ranks.push(`<span class="rankline first"><strong>1° Lugar</strong> ${arr[0].name} – <strong>${arr[0].pts}</strong> pontos</span>`);
-  if (arr[1]) ranks.push(`<span class="rankline"><strong>2° Lugar</strong> ${arr[1].name} – <strong>${arr[1].pts}</strong> pontos</span>`);
-  if (arr[2]) ranks.push(`<span class="rankline"><strong>3° Lugar</strong> ${arr[2].name} – <strong>${arr[2].pts}</strong> pontos</span>`);
+  if (arr[0]) ranks.push(`<span class="rankline first"><strong>1° Lugar</strong> ${arr[0].name} – <strong>${arr[0].pts}</strong> acertos</span>`);
+  if (arr[1]) ranks.push(`<span class="rankline"><strong>2° Lugar</strong> ${arr[1].name} – <strong>${arr[1].pts}</strong> acertos</span>`);
+  if (arr[2]) ranks.push(`<span class="rankline"><strong>3° Lugar</strong> ${arr[2].name} – <strong>${arr[2].pts}</strong> acertos</span>`);
   t.innerHTML = ranks.length ? ranks.join('<br>') : '—';
 }
 
