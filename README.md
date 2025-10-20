@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>dobble_v27l_no_predef_rooms_no_avatar_autojoin</title>
+<title>dobble_v27m_buttons_fix_autojoin</title>
 <style>
   :root { --bg:#b91c1c; --panel:#dc2626; --ink:#fff; --ring:#facc15; --card: clamp(250px, 44vw, 420px); }
   * { box-sizing:border-box }
@@ -222,7 +222,6 @@ async function enterRoom(roomId, opts={}){
         .then(res => res.committed && res.snapshot.val() === myUid);
       if (!ok) { alert('Esta sala já possui host. Entre como participante (limpe a senha).'); return; }
     }
-    // Participante: sempre segue; se host, inicializa a sala se necessário
     if (wantHost){
       await roomRef.transaction(cur => cur || {
         createdAt: firebase.database.ServerValue.TIMESTAMP,
@@ -236,7 +235,7 @@ async function enterRoom(roomId, opts={}){
       });
       isHost = true;
     } else {
-      isHost = false; // entra imediatamente, sem checar host/rounds
+      isHost = false; // participante entra imediatamente, sem mensagens
     }
 
     await proceedJoin();
@@ -248,9 +247,9 @@ async function enterRoom(roomId, opts={}){
       const existing = new Set(Object.values(players).map(p=>p.name));
       let name = baseName;
       if (existing.has(name)){
-        let n=2
-        while (existing.has(f"{baseName} ({n})")) n+=1
-        name = f"{baseName} ({n})"
+        let n=2;
+        while (existing.has(`${baseName} (${n})`)) n+=1;
+        name = `${baseName} (${n})`;
       }
       me = {name};
       await roomRef.child('players/'+myUid).set(me);
@@ -387,7 +386,7 @@ function updateTop3FromFirstWinner(fallbackScores){
   t.textContent = ranks.length ? ranks.join('   /   ') : '—';
 }
 
-// Linha de ranking ao vivo (sem avatar)
+// Linha de ranking ao vivo
 function renderRoundRank(winnersObj){
   const el = document.getElementById('roundRank');
   el.innerHTML = '';
@@ -418,7 +417,7 @@ function renderRoundRank(winnersObj){
   }
 }
 
-// Modal de resultados (sem avatar)
+// Modal de resultados
 async function showResultsModal(roundNumber){
   const overlay = document.getElementById('resultsOverlay');
   const listEl = document.getElementById('resultsList');
