@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>dobble_v27u_rank_firstwinner_fix</title>
+<title>dobble_v27w_rank_from_scores</title>
 <style>
   :root { --bg:#b91c1c; --panel:#dc2626; --ink:#fff; --ring:#facc15; --card: clamp(250px, 44vw, 420px); }
   * { box-sizing:border-box }
@@ -166,6 +166,7 @@ const DECK = {"order": 4, "symbols": [{"id": 0, "label": "Slide1", "img": "data:
 let uid=null, me=null;
 let isHost=false, room=null, roomRef=null;
 let playersCache = {};
+let scoresCache = {};
 let firstWinnersCache = {};
 let roundIdx=0, centerEls={}, mineEls={};
 let clickedInRound=false;
@@ -306,7 +307,7 @@ function subscribeRoom(){
     if (window._lastWinnersSnapshot) renderRoundRank(window._lastWinnersSnapshot);
   });
   roomRef.child('players').on('value', s=>{ playersCache = s.val()||{}; });
-  roomRef.child('scores').on('value', s=> updateTop3FromFirstWinner());
+  roomRef.child('scores').on('value', s=>{ scoresCache = s.val()||{}; updateTop3FromFirstWinner(); });
   roomRef.child('roundWinners').on('value', s=>{
     const all = s.val()||{};
     const winnersObj = all[String(roundIdx)] || all[roundIdx] || {};
@@ -386,28 +387,35 @@ function renderRound(){
 }
 
 function updateTop3FromFirstWinner(){
-  const counts = {};
-  const uidName = {};
-  // Conta apenas o 1º vencedor de cada rodada (firstWinner)
-  for (const [roundKey, obj] of Object.entries(firstWinnersCache || {})){
-    if (!obj || !obj.uid) continue;
-    const u = obj.uid;
-    counts[u] = (counts[u] || 0) + 1;
-    if (!uidName[u]) uidName[u] = (obj.name || '??');
+  // Usa 'scores' do DB como fonte de verdade (cada 1º lugar soma 1 ponto)
+  const entries = Object.entries(scoresCache || {})
+    .map(([uid, ptsRaw]) => ({ uid, pts: Number(ptsRaw)||0 }))
+    .filter(e => e.pts > 0);
+
+  // Fallback se ainda não houver 'scores' (antes da 1ª rodada)
+  if (!entries.length){
+    const counts = {};
+    for (const [roundKey, obj] of Object.entries(firstWinnersCache || {})){
+      if (!obj || !obj.uid) continue;
+      const u = obj.uid;
+      counts[u] = (counts[u] || 0) + 1;
+    }
+    for (const [u, c] of Object.entries(counts)){
+      entries.push({ uid: u, pts: c });
+    }
   }
-  // Atualiza nome por players, se disponível
-  for (const [u, p] of Object.entries(playersCache || {})){
-    if (p && p.name){ uidName[u] = p.name; }
-  }
-  // Monta somente quem tem pontos
-  const arr = Object.keys(counts).map(uid => ({
-    uid,
-    name: uidName[uid] || '??',
-    pts: counts[uid] || 0
+
+  // Nome mais atualizado vem de playersCache
+  const arr = entries.map(e => ({
+    uid: e.uid,
+    name: (playersCache?.[e.uid]?.name) || '??',
+    pts: e.pts
   }));
+
   // Ordena por pontos desc, depois nome
   arr.sort((a,b)=> b.pts - a.pts || a.name.localeCompare(b.name));
-  // Renderiza top 3
+
+  // Renderiza top 3 com destaque no 1º
   const t = document.getElementById('topListText');
   const ranks = [];
   if (arr[0]) ranks.push(`<span class="rankline first"><strong>1° Lugar</strong> ${arr[0].name} – <strong>${arr[0].pts}</strong> acertos</span>`);
@@ -498,19 +506,11 @@ async function showResultsModal(roundNumber){
 function hideResultsModal(){ document.getElementById('resultsOverlay').style.display='none'; }
 
 function computeFinalRankingArray(){
-  const counts = {};
-  for (const [roundKey, obj] of Object.entries(firstWinnersCache || {})){
-    if (!obj || !obj.uid) continue;
-    const u = obj.uid;
-    counts[u] = (counts[u] || 0) + 1;
-  }
-  const arr = Object.keys(playersCache||{}).map(uid => ({
-    uid,
-    name: (playersCache[uid]?.name || '??'),
-    pts: counts[uid] || 0
-  })).filter(p => !hostUid || p.uid !== hostUid);
-  arr.sort((a,b)=> b.pts - a.pts || a.name.localeCompare(b.name));
-  return arr;
+  const entries = Object.entries((window.scoresCache||{})).map(([uid, ptsRaw]) => ({
+    uid, pts: Number(ptsRaw)||0, name: (playersCache?.[uid]?.name)||'??'
+  })).filter(e => e.pts > 0 && (!hostUid || e.uid !== hostUid));
+  entries.sort((a,b)=> b.pts - a.pts || a.name.localeCompare(b.name));
+  return entries;
 }
 function showFinalOverlay(){
   const overlay = document.getElementById('finalOverlay');
