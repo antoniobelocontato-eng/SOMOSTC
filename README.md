@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>dobble_v27m_buttons_fix_autojoin</title>
+<title>dobble_v27s_final_all</title>
 <style>
   :root { --bg:#b91c1c; --panel:#dc2626; --ink:#fff; --ring:#facc15; --card: clamp(250px, 44vw, 420px); }
   * { box-sizing:border-box }
@@ -12,7 +12,9 @@
   .wrap{max-width:1200px;margin:0 auto;padding:12px}
   .topbar{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
   .topline{font-weight:800;}
-  .toplist{font-size:14px;line-height:1.35}
+  .toplist{font-size:16px;line-height:1.45}
+  .toplist .rankline{display:block;font-weight:500}
+  .toplist .rankline.first{ color: var(--ring); font-weight: 800; }
   .frame{background:var(--panel);border:1px solid rgba(255,255,255,.25);border-radius:16px;box-shadow:0 6px 18px rgba(0,0,0,.25)}
   .head{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.25)}
   .title{font-weight:800;font-size:16px}
@@ -49,15 +51,13 @@
     .head{ padding: 8px; }
     .title{ font-size: 15px; }
     .topline{ font-size: 16px; }
-    .toplist{ font-size: 13px; }
+    .toplist{ font-size: 14px; }
     .controls{ gap: 10px; }
     .roundbox{ margin-top: 8px; }
   }
-  /* Cartas ainda mais seguras em telas muito pequenas */
   @media (max-width: 420px){
     :root { --card: min(94vw, 62vh); }
   }
-
 </style>
 </head>
 <body>
@@ -140,6 +140,18 @@
   </div>
 </div>
 
+<!-- Tela Final (encerramento do jogo) -->
+<div class="overlay" id="finalOverlay" style="display:none;">
+  <div class="modal">
+    <h3 style="margin:0 0 10px 0;">Resultado Final — Ranking geral acumulado</h3>
+    <div id="finalCongrats" style="font-weight:800; font-size:18px; margin-bottom:8px;"></div>
+    <div class="list" id="finalList"></div>
+    <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
+      <button class="btn" id="closeFinalBtn">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://www.gstatic.com/firebasejs/10.12.3/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.3/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.3/firebase-database-compat.js"></script>
@@ -157,6 +169,7 @@ let playersCache = {};
 let firstWinnersCache = {};
 let roundIdx=0, centerEls={}, mineEls={};
 let clickedInRound=false;
+let hostUid = null;
 
 const qs = (s)=>document.querySelector(s);
 function clear(el){ while(el.firstChild) el.removeChild(el.firstChild); }
@@ -178,7 +191,6 @@ async function ensureAuth(){
   });
 }
 
-// Código aleatório (salas dinâmicas)
 function genCode(){
   const s='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
   let out='';
@@ -186,7 +198,6 @@ function genCode(){
   return out;
 }
 
-// Gera sala dinâmica (host)
 document.getElementById('genRoomBtn').addEventListener('click', async ()=>{
   const pwd = (qs('#hostPwd').value||'').trim();
   if (pwd !== 'CLARO') { alert('Para gerar uma nova sala, digite a senha do host (CLARO).'); return; }
@@ -195,14 +206,12 @@ document.getElementById('genRoomBtn').addEventListener('click', async ()=>{
   alert('Nova sala criada: ' + code + '. Compartilhe este código.');
 });
 
-// Botão "Entrar pelo código"
 document.getElementById('joinCodeBtn').addEventListener('click', async ()=>{
   const code = (qs('#joinCode').value||'').trim().toUpperCase();
   if (!code) return alert('Digite um código de sala (ex.: H7Q2M).');
   await enterRoom(code, {forceJoin:true});
 });
 
-// Auto-entrar ao digitar (5+ chars) + Enter
 (function(){
   const joinInput = document.getElementById('joinCode');
   let autoJoinTimer = null;
@@ -225,7 +234,6 @@ document.getElementById('joinCodeBtn').addEventListener('click', async ()=>{
   });
 })();
 
-// Entra/Cria Sala
 async function enterRoom(roomId, opts={}){
   const baseName=(qs('#playerName').value||'').trim();
   if(!baseName) return alert('Digite seu nome');
@@ -239,8 +247,6 @@ async function enterRoom(roomId, opts={}){
       const ok = await roomRef.child('host').transaction(cur => cur || myUid, undefined, false)
         .then(res => res.committed && res.snapshot.val() === myUid);
       if (!ok) { alert('Esta sala já possui host. Entre como participante (limpe a senha).'); return; }
-    }
-    if (wantHost){
       await roomRef.transaction(cur => cur || {
         createdAt: firebase.database.ServerValue.TIMESTAMP,
         host: myUid,
@@ -253,13 +259,12 @@ async function enterRoom(roomId, opts={}){
       });
       isHost = true;
     } else {
-      isHost = false; // participante entra imediatamente, sem mensagens
+      isHost = false;
     }
 
     await proceedJoin();
 
     async function proceedJoin(){
-      // Nome único por sala
       const snapP = await roomRef.child('players').get();
       const players = snapP.val()||{};
       const existing = new Set(Object.values(players).map(p=>p.name));
@@ -287,6 +292,11 @@ async function enterRoom(roomId, opts={}){
 }
 
 function subscribeRoom(){
+  roomRef.child('host').on('value', s=>{ hostUid = s.val() || null; });
+  roomRef.child('state').on('value', s=>{
+    const st = s.val();
+    if (st === 'finished'){ showFinalOverlay(); }
+  });
   roomRef.child('roundIdx').on('value', s=>{
     const v = s.val();
     roundIdx = (typeof v === 'number') ? v : 0;
@@ -296,7 +306,7 @@ function subscribeRoom(){
     if (window._lastWinnersSnapshot) renderRoundRank(window._lastWinnersSnapshot);
   });
   roomRef.child('players').on('value', s=>{ playersCache = s.val()||{}; });
-  roomRef.child('scores').on('value', s=> updateTop3(s.val()||{}));
+  roomRef.child('scores').on('value', s=> updateTop3FromFirstWinner());
   roomRef.child('roundWinners').on('value', s=>{
     const all = s.val()||{};
     const winnersObj = all[String(roundIdx)] || all[roundIdx] || {};
@@ -375,10 +385,7 @@ function renderRound(){
   roomRef.child('roundWinners/'+roundIdx).once('value').then(s=> renderRoundRank(s.val()||{}));
 }
 
-// Ranking geral acumulado
-function updateTop3(scores){ updateTop3FromFirstWinner(scores); }
 function updateTop3FromFirstWinner(){
-  // Conta apenas quantas vezes cada UID apareceu como primeiro vencedor (firstWinner)
   const counts = {};
   for (const [roundKey, obj] of Object.entries(firstWinnersCache || {})){
     if (!obj || !obj.uid) continue;
@@ -393,13 +400,42 @@ function updateTop3FromFirstWinner(){
   arr.sort((a,b)=> b.pts - a.pts || a.name.localeCompare(b.name));
   const t = document.getElementById('topListText');
   const ranks = [];
-  if (arr[0]) ranks.push(`1° Lugar ${arr[0].name} – ${arr[0].pts} acertos`);
-  if (arr[1]) ranks.push(`2° Lugar ${arr[1].name} – ${arr[1].pts} acertos`);
-  if (arr[2]) ranks.push(`3° Lugar ${arr[2].name} – ${arr[2].pts} acertos`);
-  t.textContent = ranks.length ? ranks.join(' / ') : '—';
+  if (arr[0]) ranks.push(`<span class="rankline first"><strong>1° Lugar</strong> ${arr[0].name} – <strong>${arr[0].pts}</strong> pontos</span>`);
+  if (arr[1]) ranks.push(`<span class="rankline"><strong>2° Lugar</strong> ${arr[1].name} – <strong>${arr[1].pts}</strong> pontos</span>`);
+  if (arr[2]) ranks.push(`<span class="rankline"><strong>3° Lugar</strong> ${arr[2].name} – <strong>${arr[2].pts}</strong> pontos</span>`);
+  t.innerHTML = ranks.length ? ranks.join('<br>') : '—';
 }
 
-// Modal de resultados
+function renderRoundRank(winnersObj){
+  const el = document.getElementById('roundRank');
+  el.innerHTML = '';
+  const winnersArr = Object.entries(winnersObj||{})
+    .map(([uid, w]) => ({uid, ...w}))
+    .sort((a,b)=>(a.ts||0)-(b.ts||0));
+
+  winnersArr.forEach((w,i)=>{
+    const pill=document.createElement('div'); pill.className='rankpill';
+    const tag = i===0 ? '<span class="tag">Pontuou</span>' : '<span class="tag">Não pontuou</span>';
+    pill.innerHTML = `<strong>${i+1}º</strong> ${w.name} ${tag}`;
+    el.appendChild(pill);
+  });
+
+  const clickerUIDs = new Set(winnersArr.map(w=>w.uid));
+  const nonClickers = Object.keys(playersCache||{})
+    .filter(u => !clickerUIDs.has(u))
+    .map(u => ({ name: playersCache[u]?.name || '??' }))
+    .sort((a,b)=> a.name.localeCompare(b.name));
+  nonClickers.forEach(nc=>{
+    const pill=document.createElement('div'); pill.className='rankpill';
+    pill.innerHTML = `<strong>sem classificação</strong> ${nc.name}`;
+    el.appendChild(pill);
+  });
+
+  if (!winnersArr.length && !nonClickers.length){
+    el.innerHTML = '<span style="opacity:.7;">Aguardando acerto…</span>';
+  }
+}
+
 async function showResultsModal(roundNumber){
   const overlay = document.getElementById('resultsOverlay');
   const listEl = document.getElementById('resultsList');
@@ -441,10 +477,55 @@ async function showResultsModal(roundNumber){
   btn.onclick = async () => {
     await roomRef.child('guesses/'+roundNumber).set(null);
     await roomRef.child('showResults').set(null);
-    await roomRef.child('roundIdx').transaction(v => ((v||0)+1) % DECK.rounds.length);
+    const lastIndex = (DECK.rounds.length - 1);
+    if (roundNumber >= lastIndex){
+      await roomRef.child('state').set('finished');
+    } else {
+      await roomRef.child('roundIdx').transaction(v => Math.min((v||0)+1, lastIndex));
+    }
   };
 }
 function hideResultsModal(){ document.getElementById('resultsOverlay').style.display='none'; }
+
+function computeFinalRankingArray(){
+  const counts = {};
+  for (const [roundKey, obj] of Object.entries(firstWinnersCache || {})){
+    if (!obj || !obj.uid) continue;
+    const u = obj.uid;
+    counts[u] = (counts[u] || 0) + 1;
+  }
+  const arr = Object.keys(playersCache||{}).map(uid => ({
+    uid,
+    name: (playersCache[uid]?.name || '??'),
+    pts: counts[uid] || 0
+  })).filter(p => !hostUid || p.uid !== hostUid);
+  arr.sort((a,b)=> b.pts - a.pts || a.name.localeCompare(b.name));
+  return arr;
+}
+function showFinalOverlay(){
+  const overlay = document.getElementById('finalOverlay');
+  const listEl = document.getElementById('finalList');
+  const congrats = document.getElementById('finalCongrats');
+  const arr = computeFinalRankingArray();
+
+  listEl.innerHTML = '';
+  if (arr.length){
+    congrats.textContent = `Parabéns ${arr[0].name} pelo 1° lugar`;
+  } else {
+    congrats.textContent = '';
+  }
+  let pos = 1;
+  arr.forEach(p => {
+    const div = document.createElement('div'); div.className = 'li';
+    div.innerHTML = `<div class="idx">${pos++}º</div><div class="name">${p.name}</div><div class="tag">${p.pts} pontos</div>`;
+    listEl.appendChild(div);
+  });
+
+  overlay.style.display = 'flex';
+  document.getElementById('closeFinalBtn').onclick = ()=>{
+    overlay.style.display = 'none';
+  };
+}
 
 // Botões
 document.getElementById('next').addEventListener('click', async ()=>{
@@ -461,6 +542,7 @@ document.getElementById('resetScores').addEventListener('click', async ()=>{
   await roomRef.child('showResults').set(null);
   await roomRef.child('firstWinner').set({});
   await roomRef.child('roundIdx').set(0);
+  await roomRef.child('state').set('playing');
 });
 document.getElementById('rnum').textContent='1';
 </script>
