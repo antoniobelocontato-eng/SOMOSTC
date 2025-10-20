@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>dobble_v27j_full_fixed_allrank</title>
+<title>dobble_v27k_auto_join_by_code</title>
 <style>
   :root { --bg:#b91c1c; --panel:#dc2626; --ink:#fff; --ring:#facc15; --card: clamp(250px, 44vw, 420px); }
   * { box-sizing:border-box }
@@ -132,7 +132,7 @@
       <input id="joinCode" placeholder="Código para entrar (ex.: H7Q2M)" style="padding:8px;border:1px solid #e5e7eb;border-radius:8px;">
       <button class="btn" id="joinCodeBtn" style="background:#16a34a;color:#fff;">Entrar pelo código</button>
     </div>
-    <div class="hint">Assim que o host entrar com a senha, qualquer participante pode entrar clicando na mesma sala (ou usando o código gerado).</div>
+    <div class="hint">Ao digitar seu código (5+ caracteres), você entra automaticamente.</div>
   </div>
 </div>
 
@@ -204,7 +204,7 @@ document.getElementById('avatarFile').addEventListener('change', (e)=>{
   reader.readAsDataURL(f);
 });
 
-// Layout
+// Layout das cartas
 const BASE_POS = [[28,26,44],[72,26,44],[50,50,40],[28,74,44],[72,74,44]];
 const SAFETY = 2;
 const hypot = (a,b)=>Math.hypot(a,b);
@@ -234,7 +234,7 @@ function placeToken(cardEl,sid,posIdx,scale,clickable,onClick){
   cardEl.appendChild(t); return t;
 }
 
-// Nome único por sala
+// Garantir nome único por sala
 async function ensureUniqueName(baseName, roomPlayersRef){
   const snap = await roomPlayersRef.get();
   const players = snap.val()||{};
@@ -267,14 +267,14 @@ document.getElementById('genRoomBtn').addEventListener('click', async ()=>{
   alert('Nova sala criada: ' + code + '. Compartilhe este código.');
 });
 
-// Entra pelo código
+// Entra pelo código (botão)
 document.getElementById('joinCodeBtn').addEventListener('click', async ()=>{
   const code = (qs('#joinCode').value||'').trim().toUpperCase();
   if (!code) return alert('Digite um código de sala (ex.: H7Q2M).');
   await enterRoom(code);
 });
 
-// Auto-entrar ao digitar o código (participante):
+// Auto-entrar ao digitar o código (5+ chars) + Enter
 (function(){
   const joinInput = document.getElementById('joinCode');
   let autoJoinTimer = null;
@@ -282,10 +282,8 @@ document.getElementById('joinCodeBtn').addEventListener('click', async ()=>{
     const codeRaw = (joinInput.value||'').trim().toUpperCase();
     joinInput.value = codeRaw;
     if (!codeRaw) return;
-    // Aguarda o usuário parar de digitar por 350ms
     if (autoJoinTimer) clearTimeout(autoJoinTimer);
     autoJoinTimer = setTimeout(()=>{
-      // Nossos códigos têm 5 caracteres; se maior/igual a 5, tentamos entrar
       if (codeRaw.length >= 5) { enterRoom(codeRaw); }
     }, 350);
   }
@@ -298,7 +296,6 @@ document.getElementById('joinCodeBtn').addEventListener('click', async ()=>{
     }
   });
 })();
-
 
 async function enterRoom(roomId, opts={}){
   const baseName=(qs('#playerName').value||'').trim();
@@ -419,7 +416,7 @@ function renderRound(){
   roomRef.child('roundWinners/'+roundIdx).once('value').then(s=> renderRoundRank(s.val()||{}));
 }
 
-// Ranking geral acumulado (baseado nos primeiros vencedores)
+// Ranking geral acumulado
 function updateTop3(scores){ updateTop3FromFirstWinner(scores); }
 function updateTop3FromFirstWinner(fallbackScores){
   const counts = {};
@@ -448,7 +445,7 @@ function updateTop3FromFirstWinner(fallbackScores){
   t.textContent = ranks.length ? ranks.join('   /   ') : '—';
 }
 
-// Linha ao vivo (sob as cartas)
+// Linha de ranking ao vivo
 function renderRoundRank(winnersObj){
   const el = document.getElementById('roundRank');
   el.innerHTML = '';
@@ -481,7 +478,7 @@ function renderRoundRank(winnersObj){
   }
 }
 
-// Modal de resultados (TODOS com posições + sem classificação)
+// Modal de resultados: todos com posições + sem classificação
 async function showResultsModal(roundNumber){
   const overlay = document.getElementById('resultsOverlay');
   const listEl = document.getElementById('resultsList');
